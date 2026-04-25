@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ShieldAlert, Lock, AlertOctagon, Phone, CheckCircle2, Clock, FileText, Fingerprint,
-  Mail, Send, ShieldCheck, AlertTriangle, XCircle, ChevronUp, Copy
+  Mail, Send, ShieldCheck, AlertTriangle, ChevronUp, Copy
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
