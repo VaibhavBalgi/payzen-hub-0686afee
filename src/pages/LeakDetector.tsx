@@ -100,6 +100,50 @@ export default function LeakDetector() {
         </div>
       </Card>
 
+      {/* Spending distribution analytics */}
+      <Card className="border-border/60 p-6 shadow-soft">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <PieIcon className="h-5 w-5 text-primary" />
+            <div>
+              <h3 className="font-semibold">Spending distribution</h3>
+              <p className="text-xs text-muted-foreground">Where your money went this month</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={spendBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
+                  {spendBreakdown.map((c, i) => <Cell key={i} fill={c.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))" }} formatter={(v: any) => `₹${v.toLocaleString()}`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="lg:col-span-3 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <StatTile icon={ArrowUp} tone="danger" label="Highest spending" value={spendBreakdown[0] && [...spendBreakdown].sort((a,b)=>b.value-a.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>b.value-a.value)[0].value.toLocaleString()}`} />
+              <StatTile icon={ArrowDown} tone="success" label="Lowest spending" value={[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].value.toLocaleString()}`} />
+              <StatTile icon={Wallet} tone="primary" label="Total monthly spend" value={`₹${spendBreakdown.reduce((s,c)=>s+c.value,0).toLocaleString()}`} sub="Across all categories" />
+              <StatTile icon={AlertTriangle} tone="warning" label="Hidden recurring loss" value={`₹${Math.round(recurring.reduce((s, r) => s + (r.frequency === "Monthly" ? r.amount : r.amount / 3), 0)).toLocaleString()}`} sub={`${recurring.length} subscriptions`} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {spendBreakdown.map((c) => (
+                <div key={c.name} className="flex items-center gap-2 rounded-lg bg-secondary/40 px-2.5 py-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
+                  <span className="text-muted-foreground">{c.name}</span>
+                  <span className="ml-auto font-semibold">₹{c.value.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 border-border/60 p-6 shadow-soft">
           <h3 className="font-semibold">Subscriptions vs total spend</h3>
