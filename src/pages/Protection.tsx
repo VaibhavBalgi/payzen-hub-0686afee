@@ -41,8 +41,29 @@ const recovery = [
 ];
 
 export default function Protection() {
+  const [reportOpen, setReportOpen] = useState(false);
+  const [suspicious, setSuspicious] = useState<SuspiciousRow[]>(initialSuspicious);
+  const [escalateRow, setEscalateRow] = useState<SuspiciousRow | null>(null);
+
+  const setStatus = (id: string, status: SuspiciousStatus, msg: string) => {
+    setSuspicious(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    toast({ title: msg });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
+      <ReportPanel
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        rows={suspicious}
+        onMarkSafe={(r) => setStatus(r.id, "Marked Safe", `${r.merchant} marked safe`)}
+        onReport={(r) => setStatus(r.id, "Reported", `Fraud reported for ${r.merchant}`)}
+        onEscalate={(r) => setEscalateRow(r)}
+      />
+      <EscalateDialog row={escalateRow} onClose={() => setEscalateRow(null)} onSent={(r) => {
+        setStatus(r.id, "Escalated", "Complaint email sent successfully");
+        setEscalateRow(null);
+      }} />
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Protection Center</h1>
         <p className="mt-1 text-sm text-muted-foreground">Act fast. Stay safe. We've got your back.</p>
