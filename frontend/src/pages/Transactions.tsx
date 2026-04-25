@@ -7,7 +7,9 @@ import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { transactions } from "@/lib/sampleData";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Trash2 } from "lucide-react";
 
 const PAGE = 8;
 
@@ -18,6 +20,28 @@ export default function Transactions() {
   const [cat, setCat] = useState("all");
   const [sortDesc, setSortDesc] = useState(true);
   const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: api.getTransactions
+  });
+
+  const deleteTxnMutation = useMutation({
+    mutationFn: (id: string) => fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/transactions/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {})
+      }
+    }).then(res => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactionStats'] });
+    }
+  });
+
+  const transactions = response?.data || [];
 
   const filtered = useMemo(() => {
     let r = transactions.filter((t) =>
@@ -77,12 +101,15 @@ export default function Transactions() {
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Bank</th>
                 <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {slice.length === 0 ? (
+              {isLoading ? (
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">Loading transactions...</td></tr>
+              ) : slice.length === 0 ? (
                 <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">No transactions match your filters.</td></tr>
-              ) : slice.map((t) => (
+              ) : slice.map((t: any) => (
                 <tr key={t.id} className="border-b border-border last:border-0 transition-colors hover:bg-secondary/40">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
@@ -93,9 +120,14 @@ export default function Transactions() {
                   <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{t.raw}</td>
                   <td className="px-5 py-3"><Badge variant="secondary" className="rounded-full font-normal">{t.category}</Badge></td>
                   <td className={`px-5 py-3 font-semibold ${t.amount > 0 ? "text-success" : ""}`}>{t.amount > 0 ? "+" : ""}₹{Math.abs(t.amount).toLocaleString()}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{t.date}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{new Date(t.date).toLocaleString()}</td>
                   <td className="px-5 py-3 text-muted-foreground">{t.bank}</td>
                   <td className="px-5 py-3"><StatusBadge status={t.status} /></td>
+                  <td className="px-5 py-3 text-right">
+                    <Button variant="ghost" size="icon" onClick={() => deleteTxnMutation.mutate(t._id)} className="h-8 w-8 text-danger hover:bg-danger-soft hover:text-danger">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>

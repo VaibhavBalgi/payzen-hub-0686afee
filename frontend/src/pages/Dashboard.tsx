@@ -11,12 +11,22 @@ import {
 } from "recharts";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { transactions, weeklySpend, categorySpend } from "@/lib/sampleData";
+import { transactions as fallbackTransactions, weeklySpend, categorySpend } from "@/lib/sampleData";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import ScanPayDialog from "@/components/ScanPayDialog";
 
 export default function Dashboard() {
   const [scanOpen, setScanOpen] = useState(false);
   const navigate = useNavigate();
+
+  const { data: txResponse } = useQuery({ queryKey: ['transactions'], queryFn: api.getTransactions });
+  const { data: statsResponse } = useQuery({ queryKey: ['transactionStats'], queryFn: api.getTransactionStats });
+
+  const transactions = txResponse?.data || fallbackTransactions;
+  const totalMonthlySpend = statsResponse?.data?.totalSpend ? `₹${statsResponse.data.totalSpend.toLocaleString()}` : "₹18,540";
+  const catSpend = statsResponse?.data?.categorySpend?.length > 0 ? statsResponse.data.categorySpend : categorySpend;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <ScanPayDialog open={scanOpen} onOpenChange={setScanOpen} />
@@ -35,7 +45,7 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Monthly Spend" value="₹18,540" delta="+12% vs last month" trend="up" icon={Wallet} tone="primary" />
+        <StatCard label="Total Monthly Spend" value={totalMonthlySpend} delta="Based on active data" trend="up" icon={Wallet} tone="primary" />
         <StatCard label="Cashback Earned" value="₹1,760" delta="+₹245 this week" trend="up" icon={Gift} tone="success" />
         <StatCard label="Hidden Charges Found" value="₹3,210" delta="6 subscriptions" trend="down" icon={AlertTriangle} tone="warning" />
         <StatCard label="Fraud Alerts" value="2 active" delta="Requires action" trend="up" icon={ShieldAlert} tone="danger" />
@@ -73,14 +83,14 @@ export default function Dashboard() {
           <p className="text-xs text-muted-foreground">This month</p>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={categorySpend} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                {categorySpend.map((c, i) => <Cell key={i} fill={c.color} />)}
+              <Pie data={catSpend} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                {catSpend.map((c: any, i: number) => <Cell key={i} fill={c.color || 'hsl(var(--primary))'} />)}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))" }} formatter={(v: any) => `₹${v}`} />
             </PieChart>
           </ResponsiveContainer>
           <div className="mt-2 space-y-2">
-            {categorySpend.map((c) => (
+            {catSpend.map((c: any) => (
               <div key={c.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
@@ -103,7 +113,7 @@ export default function Dashboard() {
             </Button>
           </div>
           <div className="space-y-1">
-            {transactions.slice(0, 6).map((t) => (
+            {transactions.slice(0, 6).map((t: any) => (
               <div key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-secondary/60">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg">{t.logo}</div>
                 <div className="min-w-0 flex-1">
@@ -114,7 +124,7 @@ export default function Dashboard() {
                   <div className={`text-sm font-semibold ${t.amount > 0 ? "text-success" : "text-foreground"}`}>
                     {t.amount > 0 ? "+" : ""}₹{Math.abs(t.amount).toLocaleString()}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">{t.date.split(" ")[0]}</div>
+                  <div className="text-[11px] text-muted-foreground">{new Date(t.date || new Date()).toLocaleString().split(",")[0]}</div>
                 </div>
               </div>
             ))}

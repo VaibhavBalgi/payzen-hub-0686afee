@@ -6,14 +6,59 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, Lock, ShieldCheck, ArrowRight, Sparkles, Eye, EyeOff } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const navigate = useNavigate();
 
-  const submit = (e: React.FormEvent) => {
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("priya@payzen.app");
+  const [loginPassword, setLoginPassword] = useState("password123");
+
+  // Signup state
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+
+  const loginMutation = useMutation({
+    mutationFn: api.login,
+    onSuccess: (data) => {
+      localStorage.setItem("token", data.token);
+      navigate("/onboarding");
+    },
+    onError: (err: any) => {
+      // If login fails (user doesn't exist), auto-register the dummy user
+      if (loginEmail === "priya@payzen.app") {
+        registerMutation.mutate({ name: "Priya Sharma", email: loginEmail, phone: "9876543210", password: loginPassword, passwordConfirm: loginPassword });
+      } else {
+        toast({ title: "Login failed", description: err.message, variant: "destructive" });
+      }
+    }
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: api.register,
+    onSuccess: (data) => {
+      localStorage.setItem("token", data.token);
+      navigate("/onboarding");
+    },
+    onError: (err: any) => {
+      toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/onboarding");
+    loginMutation.mutate({ email: loginEmail, password: loginPassword });
+  };
+
+  const handleSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    registerMutation.mutate({ name: signupName, email: signupEmail, phone: signupPhone, password: signupPassword, passwordConfirm: signupPassword });
   };
 
   return (
@@ -83,10 +128,10 @@ export default function Login() {
 
             <TabsContent value="login" className="mt-6">
               <Card className="border-border/60 p-6 shadow-soft">
-                <form onSubmit={submit} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="id">Email or Phone</Label>
-                    <Input id="id" placeholder="you@payzen.app or +91 98765 43210" required className="h-11 rounded-xl" />
+                    <Label htmlFor="id">Email</Label>
+                    <Input id="id" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} type="email" placeholder="you@payzen.app" required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -94,14 +139,14 @@ export default function Login() {
                       <button type="button" className="text-xs font-medium text-primary hover:underline">Forgot?</button>
                     </div>
                     <div className="relative">
-                      <Input id="pwd" type={showPwd ? "text" : "password"} placeholder="••••••••" required className="h-11 rounded-xl pr-10" />
+                      <Input id="pwd" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} type={showPwd ? "text" : "password"} placeholder="••••••••" required className="h-11 rounded-xl pr-10" />
                       <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" className="h-11 w-full rounded-xl shadow-glow">
-                    Continue <ArrowRight className="ml-1 h-4 w-4" />
+                  <Button type="submit" disabled={loginMutation.isPending} className="h-11 w-full rounded-xl shadow-glow">
+                    {loginMutation.isPending ? "Continuing..." : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
                   </Button>
                   <Button type="button" variant="outline" className="h-11 w-full rounded-xl">
                     Login with OTP
@@ -125,25 +170,25 @@ export default function Login() {
 
             <TabsContent value="signup" className="mt-6">
               <Card className="border-border/60 p-6 shadow-soft">
-                <form onSubmit={submit} className="space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="Priya Sharma" required className="h-11 rounded-xl" />
+                    <Input id="name" value={signupName} onChange={e => setSignupName(e.target.value)} placeholder="Priya Sharma" required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="emailS">Email</Label>
-                    <Input id="emailS" type="email" placeholder="you@payzen.app" required className="h-11 rounded-xl" />
+                    <Input id="emailS" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} type="email" placeholder="you@payzen.app" required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phoneS">Phone</Label>
-                    <Input id="phoneS" placeholder="+91 98765 43210" required className="h-11 rounded-xl" />
+                    <Input id="phoneS" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} placeholder="+91 98765 43210" required className="h-11 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pwdS">Create Password</Label>
-                    <Input id="pwdS" type="password" placeholder="••••••••" required className="h-11 rounded-xl" />
+                    <Input id="pwdS" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} type="password" placeholder="••••••••" required className="h-11 rounded-xl" />
                   </div>
-                  <Button type="submit" className="h-11 w-full rounded-xl shadow-glow">
-                    Create account <ArrowRight className="ml-1 h-4 w-4" />
+                  <Button type="submit" disabled={registerMutation.isPending} className="h-11 w-full rounded-xl shadow-glow">
+                    {registerMutation.isPending ? "Creating..." : "Create account"} <ArrowRight className="ml-1 h-4 w-4" />
                   </Button>
                 </form>
                 <p className="mt-4 text-center text-xs text-muted-foreground">

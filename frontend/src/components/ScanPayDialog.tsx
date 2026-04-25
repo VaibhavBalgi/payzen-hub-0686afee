@@ -11,6 +11,8 @@ import {
   ShoppingBag, Utensils, Receipt, Plane, Send, Film, Repeat, Store, MoreHorizontal, Download,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 type Step = "scan" | "bank" | "category" | "pin" | "success";
 
@@ -33,7 +35,7 @@ const categories = [
   { id: "Others", icon: MoreHorizontal },
 ];
 
-const merchant = { name: "Brew & Bites Cafe", upi: "brewbites@hdfcbank", amount: 487 };
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [step, setStep] = useState<Step>("scan");
@@ -43,24 +45,50 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
   const [otherCat, setOtherCat] = useState("");
   const [pin, setPin] = useState("");
   const [txnId] = useState(() => "TXN" + Math.floor(Math.random() * 9_000_000 + 1_000_000));
+  const [merchant, setMerchant] = useState({ name: "Brew & Bites Cafe", upi: "brewbites@hdfcbank", amount: 487 });
+  const queryClient = useQueryClient();
+
+  const addTxnMutation = useMutation({
+    mutationFn: api.addTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactionStats'] });
+    }
+  });
 
   // Reset on close
   useEffect(() => {
     if (!open) {
       const t = setTimeout(() => {
         setStep("scan"); setScanned(false); setPin(""); setCategory("Merchant"); setOtherCat("");
+        setMerchant({ name: "Brew & Bites Cafe", upi: "brewbites@hdfcbank", amount: 487 });
       }, 200);
       return () => clearTimeout(t);
     }
   }, [open]);
 
-  // Auto-detect QR after delay
-  useEffect(() => {
-    if (open && step === "scan" && !scanned) {
-      const t = setTimeout(() => setScanned(true), 2200);
-      return () => clearTimeout(t);
+  const handleScan = (result: any) => {
+    if (!result || scanned) return;
+    try {
+      const text = result[0].rawValue;
+      if (text.startsWith("upi://")) {
+        const url = new URL(text);
+        const upi = url.searchParams.get("pa") || "unknown@upi";
+        const name = url.searchParams.get("pn")?.replace(/%20/g, ' ') || "Unknown Merchant";
+        const amountStr = url.searchParams.get("am");
+        const amount = amountStr ? parseFloat(amountStr) : 0;
+        
+        setMerchant({ name, upi, amount });
+        setScanned(true);
+      } else {
+        setMerchant({ name: "Scanned QR", upi: text.substring(0, 20), amount: 0 });
+        setScanned(true);
+      }
+    } catch (e) {
+      setMerchant({ name: "Unknown QR", upi: "unknown", amount: 0 });
+      setScanned(true);
     }
-  }, [open, step, scanned]);
+  };
 
   const selectedBank = banks.find(b => b.id === bank)!;
   const finalCategory = category === "Others" ? (otherCat.trim() || "Others") : category;
@@ -77,11 +105,20 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
     else if (pin.length < 6) setPin(p => p + k);
   };
 
-  const pay = () => {
+  const pay = async () => {
     if (pin.length < 4) {
       toast({ title: "Enter your UPI PIN", description: "PIN must be 4 to 6 digits.", variant: "destructive" });
       return;
     }
+    await addTxnMutation.mutateAsync({
+      merchant: merchant.name,
+      amount: -merchant.amount,
+      raw: merchant.upi,
+      category: finalCategory,
+      bank: selectedBank.name,
+      app: "PayZen",
+      date: new Date()
+    });
     setStep("success");
   };
 
@@ -119,10 +156,11 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
                 <div className="absolute bottom-4 left-4 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-primary-foreground" />
                 <div className="absolute bottom-4 right-4 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-primary-foreground" />
                 {!scanned && (
-                  <>
-                    <div className="absolute inset-x-8 top-1/2 h-0.5 animate-pulse bg-primary-glow shadow-glow" />
-                    <ScanLine className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 text-primary-foreground/40" />
-                  </>
+                  <Scanner
+                    onScan={handleScan}
+                    styles={{ container: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }}
+                    components={{ audio: false, finder: false }}
+                  />
                 )}
                 {scanned && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-success/90 text-success-foreground animate-fade-in">
@@ -140,10 +178,20 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
                   <div className="text-xs text-muted-foreground">Paying to</div>
                   <div className="font-semibold">{merchant.name}</div>
                   <div className="text-xs text-muted-foreground">{merchant.upi}</div>
-                  <div className="mt-2 text-2xl font-bold">₹{merchant.amount}</div>
+                  <div className="mt-3 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
+                    <Input 
+                      type="number" 
+                      value={merchant.amount || ""} 
+                      onChange={(e) => setMerchant({ ...merchant, amount: parseFloat(e.target.value) || 0 })}
+                      className="pl-7 text-lg font-bold h-11 rounded-xl bg-background"
+                      placeholder="Enter amount"
+                      autoFocus
+                    />
+                  </div>
                 </div>
               )}
-              <Button disabled={!scanned} onClick={() => setStep("bank")} className="w-full rounded-xl">
+              <Button disabled={!scanned || merchant.amount <= 0} onClick={() => setStep("bank")} className="w-full rounded-xl">
                 Continue
               </Button>
             </div>
