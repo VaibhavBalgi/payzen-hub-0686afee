@@ -96,7 +96,7 @@ export default function Protection() {
               <p className="mt-1 text-sm text-muted-foreground">File a dispute and start the recovery process.</p>
             </div>
           </div>
-          <Button variant="outline" className="mt-4 w-full rounded-xl">Open Report</Button>
+          <Button onClick={() => setReportOpen(true)} variant="outline" className="mt-4 w-full rounded-xl">Open Report</Button>
         </Card>
       </div>
 
