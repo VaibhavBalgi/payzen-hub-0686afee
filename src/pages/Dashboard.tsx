@@ -9,12 +9,17 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid
 } from "recharts";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { transactions, weeklySpend, categorySpend } from "@/lib/sampleData";
+import ScanPayDialog from "@/components/ScanPayDialog";
 
 export default function Dashboard() {
+  const [scanOpen, setScanOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <div className="space-y-6 animate-fade-in">
+      <ScanPayDialog open={scanOpen} onOpenChange={setScanOpen} />
       {/* Welcome */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
@@ -23,9 +28,9 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <QuickAction icon={Send} label="Send Money" />
-          <QuickAction icon={ScanLine} label="Scan" />
+          <QuickAction icon={ScanLine} label="Scan" onClick={() => setScanOpen(true)} />
           <QuickAction icon={Split} label="Split Bill" />
-          <QuickAction icon={Flag} label="Report Fraud" tone="danger" />
+          <QuickAction icon={Flag} label="Report Fraud" tone="danger" onClick={() => navigate("/protection")} />
         </div>
       </div>
 
@@ -163,9 +168,9 @@ function StatCard({ label, value, delta, trend, icon: Icon, tone }: { label: str
   );
 }
 
-function QuickAction({ icon: Icon, label, tone }: { icon: any; label: string; tone?: "danger" }) {
+function QuickAction({ icon: Icon, label, tone, onClick }: { icon: any; label: string; tone?: "danger"; onClick?: () => void }) {
   return (
-    <Button variant="outline" size="sm" className={`h-10 rounded-xl ${tone === "danger" ? "border-danger/30 text-danger hover:bg-danger-soft hover:text-danger" : ""}`}>
+    <Button onClick={onClick} variant="outline" size="sm" className={`h-10 rounded-xl ${tone === "danger" ? "border-danger/30 text-danger hover:bg-danger-soft hover:text-danger" : ""}`}>
       <Icon className="mr-1.5 h-4 w-4" /> {label}
     </Button>
   );

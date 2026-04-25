@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Lightbulb, Ban } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
+import { AlertTriangle, TrendingUp, Lightbulb, Ban, PieChart as PieIcon, ArrowUp, ArrowDown, Wallet } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import { recurring } from "@/lib/sampleData";
 
 const compareData = [
@@ -12,6 +12,16 @@ const compareData = [
   { m: "Feb", subs: 2340, total: 17200 },
   { m: "Mar", subs: 2640, total: 18100 },
   { m: "Apr", subs: 3210, total: 18540 },
+];
+
+const spendBreakdown = [
+  { name: "Food", value: 4820, color: "hsl(228 67% 54%)" },
+  { name: "Shopping", value: 6420, color: "hsl(162 82% 40%)" },
+  { name: "Bills", value: 3240, color: "hsl(228 90% 65%)" },
+  { name: "Subscriptions", value: 3210, color: "hsl(41 100% 48%)" },
+  { name: "Travel", value: 2180, color: "hsl(0 95% 65%)" },
+  { name: "Merchant", value: 1480, color: "hsl(280 65% 60%)" },
+  { name: "Others", value: 1190, color: "hsl(210 9% 60%)" },
 ];
 
 const suggestions = [
@@ -90,6 +100,50 @@ export default function LeakDetector() {
         </div>
       </Card>
 
+      {/* Spending distribution analytics */}
+      <Card className="border-border/60 p-6 shadow-soft">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <PieIcon className="h-5 w-5 text-primary" />
+            <div>
+              <h3 className="font-semibold">Spending distribution</h3>
+              <p className="text-xs text-muted-foreground">Where your money went this month</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={spendBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
+                  {spendBreakdown.map((c, i) => <Cell key={i} fill={c.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))" }} formatter={(v: any) => `₹${v.toLocaleString()}`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="lg:col-span-3 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <StatTile icon={ArrowUp} tone="danger" label="Highest spending" value={spendBreakdown[0] && [...spendBreakdown].sort((a,b)=>b.value-a.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>b.value-a.value)[0].value.toLocaleString()}`} />
+              <StatTile icon={ArrowDown} tone="success" label="Lowest spending" value={[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].value.toLocaleString()}`} />
+              <StatTile icon={Wallet} tone="primary" label="Total monthly spend" value={`₹${spendBreakdown.reduce((s,c)=>s+c.value,0).toLocaleString()}`} sub="Across all categories" />
+              <StatTile icon={AlertTriangle} tone="warning" label="Hidden recurring loss" value={`₹${Math.round(recurring.reduce((s, r) => s + (r.frequency === "Monthly" ? r.amount : r.amount / 3), 0)).toLocaleString()}`} sub={`${recurring.length} subscriptions`} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {spendBreakdown.map((c) => (
+                <div key={c.name} className="flex items-center gap-2 rounded-lg bg-secondary/40 px-2.5 py-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
+                  <span className="text-muted-foreground">{c.name}</span>
+                  <span className="ml-auto font-semibold">₹{c.value.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 border-border/60 p-6 shadow-soft">
           <h3 className="font-semibold">Subscriptions vs total spend</h3>
@@ -147,4 +201,25 @@ function StatusPill({ status }: { status: string }) {
     Forgotten: "bg-warning-soft text-warning",
   };
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${map[status]}`}>{status}</span>;
+}
+
+function StatTile({ icon: Icon, label, value, sub, tone }: { icon: any; label: string; value: string; sub: string; tone: "primary" | "success" | "warning" | "danger" }) {
+  const tones = {
+    primary: "bg-primary-soft text-primary",
+    success: "bg-success-soft text-success",
+    warning: "bg-warning-soft text-warning",
+    danger: "bg-danger-soft text-danger",
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2">
+        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+      </div>
+      <div className="mt-2 text-base font-bold leading-tight">{value}</div>
+      <div className="text-xs text-muted-foreground">{sub}</div>
+    </div>
+  );
 }
