@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, TrendingDown, Gift, AlertTriangle, ShieldAlert,
-  Send, ScanLine, Split, Flag, Sparkles, ArrowUpRight, Wallet
+  Send, ScanLine, Flag, Sparkles, ArrowUpRight, Wallet
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -29,7 +29,6 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2">
           <QuickAction icon={Send} label="Send Money" />
           <QuickAction icon={ScanLine} label="Scan" onClick={() => setScanOpen(true)} />
-          <QuickAction icon={Split} label="Split Bill" />
           <QuickAction icon={Flag} label="Report Fraud" tone="danger" onClick={() => navigate("/protection")} />
         </div>
       </div>
