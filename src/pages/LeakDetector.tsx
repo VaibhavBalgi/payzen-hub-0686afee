@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Lightbulb, Ban } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
+import { AlertTriangle, TrendingUp, Lightbulb, Ban, PieChart as PieIcon, ArrowUp, ArrowDown, Wallet } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import { recurring } from "@/lib/sampleData";
 
 const compareData = [
@@ -12,6 +12,16 @@ const compareData = [
   { m: "Feb", subs: 2340, total: 17200 },
   { m: "Mar", subs: 2640, total: 18100 },
   { m: "Apr", subs: 3210, total: 18540 },
+];
+
+const spendBreakdown = [
+  { name: "Food", value: 4820, color: "hsl(228 67% 54%)" },
+  { name: "Shopping", value: 6420, color: "hsl(162 82% 40%)" },
+  { name: "Bills", value: 3240, color: "hsl(228 90% 65%)" },
+  { name: "Subscriptions", value: 3210, color: "hsl(41 100% 48%)" },
+  { name: "Travel", value: 2180, color: "hsl(0 95% 65%)" },
+  { name: "Merchant", value: 1480, color: "hsl(280 65% 60%)" },
+  { name: "Others", value: 1190, color: "hsl(210 9% 60%)" },
 ];
 
 const suggestions = [
