@@ -1,10 +1,36 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ShieldAlert, Lock, AlertOctagon, Phone, CheckCircle2, Clock, FileText, Fingerprint
+  ShieldAlert, Lock, AlertOctagon, Phone, CheckCircle2, Clock, FileText, Fingerprint,
+  Mail, Send, ShieldCheck, AlertTriangle, XCircle, ChevronUp, Copy
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 import { fraudAlerts } from "@/lib/sampleData";
+
+type SuspiciousStatus = "Under Review" | "Marked Safe" | "Reported" | "Escalated";
+type SuspiciousRow = {
+  id: string;
+  merchant: string;
+  amount: number;
+  date: string;
+  risk: "High" | "Medium" | "Low";
+  status: SuspiciousStatus;
+};
+
+const initialSuspicious: SuspiciousRow[] = [
+  { id: "S-9821", merchant: "MRCH-XYZ-9821", amount: 1499, date: "Apr 20, 2025", risk: "High", status: "Under Review" },
+  { id: "S-9788", merchant: "INTL*GAMING-LDN", amount: 4220, date: "Apr 14, 2025", risk: "High", status: "Under Review" },
+  { id: "S-9762", merchant: "Repeat Debit X3", amount: 240, date: "Apr 09, 2025", risk: "Medium", status: "Under Review" },
+  { id: "S-9741", merchant: "QUICKPAY-UPI-7733", amount: 899, date: "Apr 05, 2025", risk: "Low", status: "Under Review" },
+];
 
 const recovery = [
   { step: "Reported", desc: "Complaint registered with PayZen", date: "Apr 21, 2025 · 10:42", done: true },
