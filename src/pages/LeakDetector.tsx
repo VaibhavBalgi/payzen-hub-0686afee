@@ -202,3 +202,24 @@ function StatusPill({ status }: { status: string }) {
   };
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${map[status]}`}>{status}</span>;
 }
+
+function StatTile({ icon: Icon, label, value, sub, tone }: { icon: any; label: string; value: string; sub: string; tone: "primary" | "success" | "warning" | "danger" }) {
+  const tones = {
+    primary: "bg-primary-soft text-primary",
+    success: "bg-success-soft text-success",
+    warning: "bg-warning-soft text-warning",
+    danger: "bg-danger-soft text-danger",
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2">
+        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+      </div>
+      <div className="mt-2 text-base font-bold leading-tight">{value}</div>
+      <div className="text-xs text-muted-foreground">{sub}</div>
+    </div>
+  );
+}
