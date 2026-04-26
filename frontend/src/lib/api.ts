@@ -44,6 +44,16 @@ export const api = {
     return handleResponse(res);
   },
   
+  // Support
+  escalateTransaction: async (data: any) => {
+    const res = await fetch(`${API_URL}/support/escalate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+  
   // Transactions
   getTransactions: async () => {
     const res = await fetch(`${API_URL}/transactions`, { headers: getAuthHeaders() });

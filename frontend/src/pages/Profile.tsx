@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -18,6 +20,10 @@ export default function Profile() {
   const [hideBalances, setHideBalances] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [notif, setNotif] = useState({ fraud: true, cashback: true, debit: true, marketing: false });
+
+  const { data: profileResponse } = useQuery({ queryKey: ['profile'], queryFn: api.getProfile });
+  const user = profileResponse?.user || { name: "Priya Sharma", email: "priya@payzen.app", phone: "+91 98765 43210" };
+  const initials = user.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || "PS";
 
   const [banks, setBanks] = useState(["HDFC Bank ••4521", "ICICI Bank ••8912"]);
   const [apps, setApps] = useState(["Google Pay", "PhonePe", "Paytm"]);
@@ -63,10 +69,10 @@ export default function Profile() {
       <Card className="relative overflow-hidden border-border/60 p-6 shadow-soft">
         <div className="absolute inset-x-0 top-0 h-24 gradient-hero opacity-90" />
         <div className="relative flex flex-col items-start gap-5 pt-12 md:flex-row md:items-end">
-          <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-card bg-primary-soft text-3xl font-bold text-primary shadow-soft">PS</div>
+          <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-card bg-primary-soft text-3xl font-bold text-primary shadow-soft">{initials}</div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold">Priya Sharma</h2>
-            <div className="text-sm text-muted-foreground">priya@payzen.app · +91 98765 43210</div>
+            <h2 className="text-xl font-bold">{user.name}</h2>
+            <div className="text-sm text-muted-foreground">{user.email} {user.phone ? `· ${user.phone}` : ''}</div>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge className="rounded-full bg-success-soft text-success hover:bg-success-soft">Verified</Badge>
               <Badge variant="secondary" className="rounded-full">Pro Member</Badge>

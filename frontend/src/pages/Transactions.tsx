@@ -241,13 +241,14 @@ export default function Transactions() {
 }
 
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  const allLabel = label === "Category" ? "All Categories" : label === "Status" ? "All Status" : `All ${label}s`;
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="h-10 rounded-xl">
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
-        {options.map((o) => <SelectItem key={o} value={o}>{o === "all" ? `All ${label}s` : o}</SelectItem>)}
+        {options.map((o) => <SelectItem key={o} value={o}>{o === "all" ? allLabel : o}</SelectItem>)}
       </SelectContent>
     </Select>
   );

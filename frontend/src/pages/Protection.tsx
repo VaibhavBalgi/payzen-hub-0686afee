@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { fraudAlerts } from "@/lib/sampleData";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 type SuspiciousStatus = "Under Review" | "Marked Safe" | "Reported" | "Escalated";
 type SuspiciousRow = {
@@ -425,13 +427,40 @@ function ReportPanel({
 
 function EscalateDialog({ row, onClose, onSent }: { row: SuspiciousRow | null; onClose: () => void; onSent: (r: SuspiciousRow) => void }) {
   const [reason, setReason] = useState("Unauthorized transaction. I did not authorize this debit and request immediate investigation.");
-  const authority = "authority@payzen-support.com";
-  const userName = "Priya Sharma";
+  const authority = "authorityofficial123@gmail.com";
+  
+  const { data: profileResponse } = useQuery({ queryKey: ['profile'], queryFn: api.getProfile });
+  const user = profileResponse?.user || { name: "Priya Sharma", email: "priya@payzen.app" };
+  const userName = user.name;
+
+  const escalateMutation = useMutation({
+    mutationFn: api.escalateTransaction,
+    onSuccess: () => {
+      if (row) onSent(row);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to send email", description: err.message || "Check backend SMTP config", variant: "destructive" });
+    }
+  });
+
+  const handleSend = () => {
+    if (!row) return;
+    escalateMutation.mutate({
+      userName: userName,
+      userEmail: user.email,
+      caseId: row.id,
+      merchant: row.merchant,
+      amount: row.amount,
+      date: row.date,
+      risk: row.risk,
+      reason: reason
+    });
+  };
 
   if (!row) return null;
   const subject = `URGENT: Fraud escalation — Case ${row.id} (₹${row.amount.toLocaleString()})`;
   const body = `To: ${authority}
-From: ${userName} <priya@payzen.app>
+From: ${userName} <${user.email}>
 Subject: ${subject}
 
 Dear Authority,
@@ -490,8 +519,8 @@ ${userName}`;
 
         <DialogFooter className="gap-2">
           <Button variant="outline" className="rounded-xl" onClick={onClose}>Cancel</Button>
-          <Button className="rounded-xl" onClick={() => onSent(row)}>
-            <Send className="mr-1.5 h-4 w-4" /> Send Mail to Higher Authority
+          <Button className="rounded-xl" onClick={handleSend} disabled={escalateMutation.isPending}>
+            <Send className="mr-1.5 h-4 w-4" /> {escalateMutation.isPending ? "Sending Mail..." : "Send Mail to Higher Authority"}
           </Button>
         </DialogFooter>
       </DialogContent>
