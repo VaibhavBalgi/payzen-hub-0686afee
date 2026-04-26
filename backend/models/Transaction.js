@@ -41,6 +41,20 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     enum: ['Success', 'Pending', 'Flagged'],
     default: 'Success',
+  },
+  source: {
+    type: String,
+    enum: ['App', 'Bank/CSV', 'Razorpay'],
+    default: 'App',
+  },
+  paymentMethod: {
+    type: String,
+  },
+  razorpayPaymentId: {
+    type: String,
+  },
+  razorpayOrderId: {
+    type: String,
   }
 }, {
   timestamps: true

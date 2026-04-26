@@ -18,27 +18,47 @@ import ScanPayDialog from "@/components/ScanPayDialog";
 
 export default function Dashboard() {
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanMode, setScanMode] = useState<"scan" | "manual">("scan");
   const navigate = useNavigate();
 
   const { data: txResponse } = useQuery({ queryKey: ['transactions'], queryFn: api.getTransactions });
   const { data: statsResponse } = useQuery({ queryKey: ['transactionStats'], queryFn: api.getTransactionStats });
+  const { data: profileResponse } = useQuery({ queryKey: ['profile'], queryFn: api.getProfile });
 
   const transactions = txResponse?.data || fallbackTransactions;
   const totalMonthlySpend = statsResponse?.data?.totalSpend ? `₹${statsResponse.data.totalSpend.toLocaleString()}` : "₹18,540";
-  const catSpend = statsResponse?.data?.categorySpend?.length > 0 ? statsResponse.data.categorySpend : categorySpend;
+  const predefinedColors = [
+    'hsl(var(--primary))',
+    '#10b981', // emerald-500
+    '#f59e0b', // amber-500
+    '#ef4444', // red-500
+    '#8b5cf6', // violet-500
+    '#3b82f6', // blue-500
+    '#ec4899', // pink-500
+    '#14b8a6', // teal-500
+  ];
+
+  const catSpend = (statsResponse?.data?.categorySpend?.length > 0 
+    ? statsResponse.data.categorySpend 
+    : categorySpend).map((c: any, index: number) => ({
+      ...c,
+      color: c.color || predefinedColors[index % predefinedColors.length]
+    }));
+
+  const firstName = profileResponse?.user?.name?.split(' ')[0] || "there";
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <ScanPayDialog open={scanOpen} onOpenChange={setScanOpen} />
+      <ScanPayDialog open={scanOpen} onOpenChange={setScanOpen} initialMode={scanMode} />
       {/* Welcome */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Welcome back, Priya 👋</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Welcome back, {firstName} 👋</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here's a smart look at your money this month.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <QuickAction icon={Send} label="Send Money" />
-          <QuickAction icon={ScanLine} label="Scan" onClick={() => setScanOpen(true)} />
+          <QuickAction icon={Send} label="Send Money" onClick={() => { setScanMode("manual"); setScanOpen(true); }} />
+          <QuickAction icon={ScanLine} label="Scan" onClick={() => { setScanMode("scan"); setScanOpen(true); }} />
           <QuickAction icon={Flag} label="Report Fraud" tone="danger" onClick={() => navigate("/protection")} />
         </div>
       </div>

@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import insightRoutes from './routes/insightRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
@@ -36,6 +37,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -65,3 +67,9 @@ app.listen(PORT, () => {
 });
 
 console.log("MONGO_URI:", process.env.MONGO_URI);
+
+// Trigger nodemon restart
+
+// Trigger nodemon restart 2
+
+// Restart for port 5005

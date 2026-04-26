@@ -4,7 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Gift, Sparkles, Clock, TrendingUp, Lightbulb } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { rewards } from "@/lib/sampleData";
+import { rewards as initialRewards } from "@/lib/sampleData";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 const monthlyRewards = [
   { m: "Nov", v: 320 }, { m: "Dec", v: 480 }, { m: "Jan", v: 590 },
@@ -20,9 +22,21 @@ const claimedHistory = [
 ];
 
 export default function Rewards() {
+  const [rewards, setRewards] = useState(initialRewards);
   const totalSaved = 4820;
   const available = rewards.reduce((s, r) => s + r.amount, 0);
   const expiringSoon = rewards.filter((r) => new Date(r.expires) < new Date(2025, 4, 20));
+
+  const claimAll = () => {
+    if (rewards.length === 0) return;
+    toast({ title: "All rewards claimed!", description: `₹${available} credited to your account.` });
+    setRewards([]);
+  };
+
+  const claimReward = (app: string, amount: number) => {
+    toast({ title: "Reward claimed!", description: `₹${amount} from ${app} credited.` });
+    setRewards(rewards.filter((r) => r.app !== app));
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -42,7 +56,7 @@ export default function Rewards() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success"><Sparkles className="h-5 w-5" /></div>
           <div className="mt-4 text-xs font-medium text-muted-foreground">Available cashback</div>
           <div className="mt-1 text-3xl font-bold">₹{available.toLocaleString()}</div>
-          <Button size="sm" className="mt-3 rounded-full">Claim all</Button>
+          <Button size="sm" className="mt-3 rounded-full" onClick={claimAll} disabled={rewards.length === 0}>Claim all</Button>
         </Card>
         <Card className="border-border/60 p-6 shadow-soft">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning-soft text-warning"><Clock className="h-5 w-5" /></div>
@@ -63,12 +77,12 @@ export default function Rewards() {
           </TabsList>
           <TabsContent value="all" className="mt-5">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {rewards.map((r) => <RewardCard key={r.app} r={r} />)}
+              {rewards.map((r) => <RewardCard key={r.app} r={r} onClaim={() => claimReward(r.app, r.amount)} />)}
             </div>
           </TabsContent>
           {["gpay", "phonepe", "paytm", "bank"].map((k, i) => (
             <TabsContent key={k} value={k} className="mt-5">
-              <RewardCard r={rewards[i]} />
+              {rewards[i] ? <RewardCard r={rewards[i]} onClaim={() => claimReward(rewards[i].app, rewards[i].amount)} /> : <div className="text-sm text-muted-foreground p-4 text-center">No active offers.</div>}
             </TabsContent>
           ))}
         </Tabs>
@@ -136,7 +150,7 @@ export default function Rewards() {
   );
 }
 
-function RewardCard({ r }: { r: any }) {
+function RewardCard({ r, onClaim }: { r: any; onClaim: () => void }) {
   return (
     <div className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:shadow-soft">
       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-lg font-bold text-primary">
@@ -151,7 +165,7 @@ function RewardCard({ r }: { r: any }) {
       </div>
       <div className="text-right">
         <div className="text-lg font-bold">₹{r.amount}</div>
-        <Button size="sm" className="mt-1 h-7 rounded-full text-xs">Claim</Button>
+        <Button size="sm" className="mt-1 h-7 rounded-full text-xs" onClick={onClaim}>Claim</Button>
       </div>
     </div>
   );

@@ -19,15 +19,34 @@ const apps = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const [upiVerified, setUpiVerified] = useState(false);
-  const [upiId, setUpiId] = useState("priya@okhdfcbank");
+  const [upiId, setUpiId] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [connected, setConnected] = useState<string[]>(["Google Pay", "PhonePe"]);
-  const [banks, setBanks] = useState(["HDFC Bank ••4521", "ICICI Bank ••8912"]);
+  const [connected, setConnected] = useState<string[]>([]);
+  const [banks, setBanks] = useState<string[]>([]);
   const [consent, setConsent] = useState(true);
 
   const verify = () => {
+    if (!upiId.includes("@")) return;
     setVerifying(true);
-    setTimeout(() => { setVerifying(false); setUpiVerified(true); }, 800);
+    setTimeout(() => { 
+      setVerifying(false); 
+      setUpiVerified(true);
+      
+      // Determine bank from UPI handle
+      const domain = upiId.split('@')[1]?.toLowerCase();
+      let bankName = "Linked Bank Account";
+      if (domain.includes('hdfc')) bankName = "HDFC Bank";
+      else if (domain.includes('icici')) bankName = "ICICI Bank";
+      else if (domain.includes('sbi')) bankName = "State Bank of India";
+      else if (domain.includes('ybl') || domain.includes('ibl') || domain.includes('axl')) bankName = "Axis/Yes Bank";
+      else if (domain.includes('paytm')) bankName = "Paytm Payments Bank";
+      else if (domain.includes('kotak')) bankName = "Kotak Mahindra Bank";
+      else if (domain.includes('okaxis')) bankName = "Axis Bank";
+      
+      const random4 = Math.floor(1000 + Math.random() * 9000);
+      setBanks([`${bankName} ••${random4}`]);
+      
+    }, 1200);
   };
 
   const toggleApp = (name: string) =>
@@ -112,17 +131,23 @@ export default function Onboarding() {
           <Card className="border-border/60 p-6 shadow-soft">
             <h3 className="font-semibold">Step C · Connect Bank Accounts</h3>
             <div className="mt-4 space-y-2">
-              {banks.map((b) => (
-                <div key={b} className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                      <Building2 className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-medium">{b}</span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-success"><Check className="h-3 w-3" /> Linked</span>
+              {banks.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-6 text-center text-sm text-muted-foreground">
+                  Verify your UPI ID above to automatically fetch your linked bank accounts.
                 </div>
-              ))}
+              ) : (
+                banks.map((b) => (
+                  <div key={b} className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 px-4 py-3 animate-fade-in">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium">{b}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-success"><Check className="h-3 w-3" /> Linked</span>
+                  </div>
+                ))
+              )}
             </div>
             <Button variant="outline" className="mt-4 w-full rounded-xl" onClick={() => setBanks([...banks, "Axis Bank ••2210"])}>
               <Plus className="mr-1 h-4 w-4" /> Add another bank

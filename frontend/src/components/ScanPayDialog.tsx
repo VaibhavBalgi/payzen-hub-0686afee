@@ -13,6 +13,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { jsPDF } from "jspdf";
 
 type Step = "scan" | "bank" | "category" | "pin" | "success";
 
@@ -37,9 +38,26 @@ const categories = [
 
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+const getBankFromUPI = (upi: string) => {
+  const lower = upi.toLowerCase();
+  if (lower.endsWith('@okaxis') || lower.endsWith('@okicici') || lower.endsWith('@oksbi') || lower.endsWith('@okhdfc')) return 'Google Pay';
+  if (lower.endsWith('@ybl') || lower.endsWith('@ibl') || lower.endsWith('@axl') || lower.endsWith('@ptaxis')) return 'PhonePe';
+  if (lower.endsWith('@paytm')) return 'Paytm';
+  if (lower.endsWith('@upi')) return 'BHIM UPI';
+  if (lower.endsWith('@apaxl') || lower.endsWith('@apl')) return 'Amazon Pay';
+  if (lower.endsWith('@waaxis') || lower.endsWith('@waicici')) return 'WhatsApp Pay';
+  if (lower.endsWith('@icici')) return 'ICICI Bank';
+  if (lower.endsWith('@hdfcbank')) return 'HDFC Bank';
+  if (lower.endsWith('@sbi')) return 'State Bank of India';
+  if (lower.endsWith('@kotak')) return 'Kotak Bank';
+  if (lower.endsWith('@axisbank')) return 'Axis Bank';
+  return 'UPI App';
+};
+
+export default function ScanPayDialog({ open, onOpenChange, initialMode = "scan" }: { open: boolean; onOpenChange: (v: boolean) => void; initialMode?: "scan" | "manual" }) {
   const [step, setStep] = useState<Step>("scan");
-  const [scanned, setScanned] = useState(false);
+  const [mode, setMode] = useState<"scan" | "manual">(initialMode);
+  const [scanned, setScanned] = useState(initialMode === "manual");
   const [bank, setBank] = useState(banks[0].id);
   const [category, setCategory] = useState("Merchant");
   const [otherCat, setOtherCat] = useState("");
@@ -56,16 +74,26 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
     }
   });
 
-  // Reset on close
+  // Reset on close or open
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setMode(initialMode);
+      if (initialMode === "manual") {
+        setScanned(true);
+        setMerchant({ name: "", upi: "", amount: 0 });
+      } else {
+        setScanned(false);
+        setMerchant({ name: "Brew & Bites Cafe", upi: "brewbites@hdfcbank", amount: 487 });
+      }
+      setStep("scan"); setPin(""); setCategory("Merchant"); setOtherCat("");
+    } else {
       const t = setTimeout(() => {
         setStep("scan"); setScanned(false); setPin(""); setCategory("Merchant"); setOtherCat("");
         setMerchant({ name: "Brew & Bites Cafe", upi: "brewbites@hdfcbank", amount: 487 });
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [open]);
+  }, [open, initialMode]);
 
   const handleScan = (result: any) => {
     if (!result || scanned) return;
@@ -116,10 +144,50 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
       raw: merchant.upi,
       category: finalCategory,
       bank: selectedBank.name,
-      app: "PayZen",
+      app: getBankFromUPI(merchant.upi),
       date: new Date()
     });
     setStep("success");
+  };
+
+  const downloadReceipt = () => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: [100, 150]
+    });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("PayZen Receipt", 50, 15, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text("Payment Successful", 50, 25, { align: "center" });
+    
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Rs. ${merchant.amount}`, 50, 40, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    
+    let y = 60;
+    const addRow = (label: string, value: string) => {
+      doc.text(label, 10, y);
+      const splitValue = doc.splitTextToSize(value, 50);
+      doc.text(splitValue, 90, y, { align: "right" });
+      y += 10 * splitValue.length;
+    };
+    
+    addRow("Paid to:", merchant.name);
+    addRow("Transaction ID:", txnId);
+    addRow("From:", `${selectedBank.name} ${selectedBank.masked}`);
+    addRow("Category:", finalCategory);
+    addRow("Date & Time:", now);
+    
+    doc.save(`receipt-${txnId}.pdf`);
+    toast({ title: "Receipt downloaded", description: `Receipt for ${txnId} saved as PDF.` });
   };
 
   return (
@@ -150,34 +218,69 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
           {step === "scan" && (
             <div className="space-y-4 animate-fade-in">
               <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-2xl bg-gradient-to-br from-foreground to-foreground/80">
-                {/* viewfinder corners */}
-                <div className="absolute left-4 top-4 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-primary-foreground" />
-                <div className="absolute right-4 top-4 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-primary-foreground" />
-                <div className="absolute bottom-4 left-4 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-primary-foreground" />
-                <div className="absolute bottom-4 right-4 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-primary-foreground" />
-                {!scanned && (
-                  <Scanner
-                    onScan={handleScan}
-                    styles={{ container: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }}
-                    components={{ audio: false, finder: false }}
-                  />
-                )}
-                {scanned && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-success/90 text-success-foreground animate-fade-in">
-                    <CheckCircle2 className="h-14 w-14" />
-                    <div className="mt-2 font-semibold">QR detected</div>
-                    <div className="mt-1 text-xs opacity-90">{merchant.upi}</div>
+                {mode === "scan" ? (
+                  <>
+                    {/* viewfinder corners */}
+                    <div className="absolute left-4 top-4 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-primary-foreground" />
+                    <div className="absolute right-4 top-4 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-primary-foreground" />
+                    <div className="absolute bottom-4 left-4 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-primary-foreground" />
+                    <div className="absolute bottom-4 right-4 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-primary-foreground" />
+                    {!scanned && (
+                      <Scanner
+                        onScan={handleScan}
+                        styles={{ container: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }}
+                        components={{ audio: false, finder: false }}
+                      />
+                    )}
+                    {scanned && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-success/90 text-success-foreground animate-fade-in">
+                        <CheckCircle2 className="h-14 w-14" />
+                        <div className="mt-2 font-semibold">QR detected</div>
+                        <div className="mt-1 text-xs opacity-90">{merchant.upi}</div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-card text-card-foreground p-6 text-center animate-fade-in">
+                    <Send className="h-12 w-12 text-primary mb-4" />
+                    <h3 className="font-semibold text-lg">Send Money</h3>
+                    <p className="text-sm text-muted-foreground mt-2">Enter the UPI ID or scan a QR code to securely send money.</p>
                   </div>
                 )}
               </div>
               <p className="text-center text-xs text-muted-foreground">
-                {scanned ? "Verify merchant and continue" : "Align the QR code within the frame"}
+                {mode === "manual" ? "Enter details below" : scanned ? "Verify merchant and continue" : "Align the QR code within the frame"}
               </p>
+              
+              {!scanned && mode === "scan" && (
+                <Button variant="ghost" onClick={() => { setMode("manual"); setScanned(true); setMerchant({ name: "", upi: "", amount: 0 }); }} className="w-full text-xs">
+                  Enter UPI ID Manually
+                </Button>
+              )}
+
               {scanned && (
                 <div className="rounded-xl border border-border bg-secondary/40 p-3">
-                  <div className="text-xs text-muted-foreground">Paying to</div>
-                  <div className="font-semibold">{merchant.name}</div>
-                  <div className="text-xs text-muted-foreground">{merchant.upi}</div>
+                  {mode === "manual" ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Paying to (Name)</Label>
+                        <Input value={merchant.name} onChange={e => setMerchant({...merchant, name: e.target.value})} className="h-9 mt-1 rounded-lg bg-background" placeholder="e.g. John Doe" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">UPI ID</Label>
+                        <Input value={merchant.upi} onChange={e => setMerchant({...merchant, upi: e.target.value})} className="h-9 mt-1 rounded-lg bg-background" placeholder="john@upi" />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-muted-foreground">Paying to</div>
+                      <div className="font-semibold">{merchant.name}</div>
+                      <div className="text-xs text-muted-foreground">{merchant.upi}</div>
+                      <div className="mt-1 flex items-center gap-1 text-xs font-medium text-primary">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Verified • {getBankFromUPI(merchant.upi)}
+                      </div>
+                    </>
+                  )}
                   <div className="mt-3 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
                     <Input 
@@ -317,7 +420,7 @@ export default function ScanPayDialog({ open, onOpenChange }: { open: boolean; o
                 <Button
                   variant="outline"
                   className="rounded-xl"
-                  onClick={() => toast({ title: "Receipt downloaded", description: `Receipt for ${txnId} saved.` })}
+                  onClick={downloadReceipt}
                 >
                   <Download className="mr-1.5 h-4 w-4" /> Receipt
                 </Button>

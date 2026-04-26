@@ -10,6 +10,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -23,6 +25,10 @@ const navItems = [
 export default function AppLayout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+
+  const { data: profileResponse } = useQuery({ queryKey: ['profile'], queryFn: api.getProfile });
+  const user = profileResponse?.user || { name: "Priya Sharma", email: "priya@payzen.app" };
+  const initials = user.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || "PS";
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -92,10 +98,10 @@ export default function AppLayout() {
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 rounded-xl p-1 pr-3 hover:bg-secondary">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-sm font-semibold text-primary">PS</div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-sm font-semibold text-primary">{initials}</div>
               <div className="hidden text-left md:block">
-                <div className="text-sm font-semibold leading-tight">Priya Sharma</div>
-                <div className="text-xs leading-tight text-muted-foreground">priya@payzen.app</div>
+                <div className="text-sm font-semibold leading-tight">{user.name}</div>
+                <div className="text-xs leading-tight text-muted-foreground">{user.email}</div>
               </div>
               <ChevronDown className="hidden h-4 w-4 text-muted-foreground md:block" />
             </DropdownMenuTrigger>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ShieldAlert, Lock, AlertOctagon, Phone, CheckCircle2, Clock, FileText, Fingerprint,
-  Mail, Send, ShieldCheck, AlertTriangle, ChevronUp, Copy
+  Mail, Send, ShieldCheck, AlertTriangle, ChevronUp, Copy, CreditCard, Unlock
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
@@ -40,10 +40,29 @@ const recovery = [
   { step: "Refund / Resolution", desc: "Awaiting outcome", date: "Pending", done: false },
 ];
 
+const initialAccounts = [
+  { id: "A-1", name: "HDFC Bank", type: "Savings", last4: "4092", status: "Active" },
+  { id: "A-2", name: "ICICI Bank", type: "Salary", last4: "8812", status: "Active" },
+  { id: "A-3", name: "PayZen Wallet", type: "Digital", last4: "wallet", status: "Active" },
+];
+
 export default function Protection() {
   const [reportOpen, setReportOpen] = useState(false);
   const [suspicious, setSuspicious] = useState<SuspiciousRow[]>(initialSuspicious);
   const [escalateRow, setEscalateRow] = useState<SuspiciousRow | null>(null);
+  const [accounts, setAccounts] = useState(initialAccounts);
+
+  const allFrozen = accounts.every(a => a.status === "Frozen");
+
+  const handleToggleFreezeAll = () => {
+    if (allFrozen) {
+      setAccounts(accounts.map(a => ({ ...a, status: "Active" })));
+      toast({ title: "Accounts Unfrozen", description: "All your linked accounts are now active." });
+    } else {
+      setAccounts(accounts.map(a => ({ ...a, status: "Frozen" })));
+      toast({ title: "Emergency Freeze Activated", description: "All linked accounts and cards have been frozen immediately.", variant: "destructive" });
+    }
+  };
 
   const setStatus = (id: string, status: SuspiciousStatus, msg: string) => {
     setSuspicious(prev => prev.map(r => r.id === id ? { ...r, status } : r));
@@ -81,8 +100,15 @@ export default function Protection() {
               <p className="mt-1 text-sm text-muted-foreground">Instantly freeze all linked accounts and UPI activity.</p>
             </div>
           </div>
-          <Button className="mt-4 w-full rounded-xl bg-danger text-danger-foreground hover:bg-danger/90">
-            <Lock className="mr-1.5 h-4 w-4" /> Freeze All Accounts
+          <Button 
+            className={`mt-4 w-full rounded-xl ${allFrozen ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-danger text-danger-foreground hover:bg-danger/90"}`}
+            onClick={handleToggleFreezeAll}
+          >
+            {allFrozen ? (
+              <><Unlock className="mr-1.5 h-4 w-4" /> Unfreeze All Accounts</>
+            ) : (
+              <><Lock className="mr-1.5 h-4 w-4" /> Freeze All Accounts</>
+            )}
           </Button>
         </Card>
 
@@ -99,6 +125,34 @@ export default function Protection() {
           <Button onClick={() => setReportOpen(true)} variant="outline" className="mt-4 w-full rounded-xl">Open Report</Button>
         </Card>
       </div>
+
+      {/* Linked Accounts Visualization */}
+      <Card className="border-border/60 p-6 shadow-soft">
+        <div className="flex items-center gap-2 mb-4">
+          <CreditCard className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">Linked Accounts & Cards</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {accounts.map(acc => (
+            <div key={acc.id} className={`p-4 rounded-xl border transition-all ${acc.status === 'Frozen' ? 'border-danger/40 bg-danger-soft/20 opacity-80' : 'border-border bg-card'}`}>
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-semibold text-sm">{acc.name}</div>
+                  <div className="text-xs text-muted-foreground">{acc.type} •••• {acc.last4}</div>
+                </div>
+                <Badge className={`rounded-full text-[10px] ${acc.status === 'Frozen' ? 'bg-danger text-white hover:bg-danger' : 'bg-success-soft text-success hover:bg-success-soft'}`}>
+                  {acc.status}
+                </Badge>
+              </div>
+              {acc.status === 'Frozen' && (
+                <div className="mt-2 text-[10px] text-danger font-medium flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Transactions temporarily blocked
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {/* Suspicious table */}
       <Card className="border-border/60 shadow-soft overflow-hidden">

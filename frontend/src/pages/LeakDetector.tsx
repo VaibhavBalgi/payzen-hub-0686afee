@@ -1,9 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Lightbulb, Ban, PieChart as PieIcon, ArrowUp, ArrowDown, Wallet } from "lucide-react";
+import { AlertTriangle, TrendingUp, Lightbulb, Ban, PieChart as PieIcon, ArrowUp, ArrowDown, Wallet, Settings, Pause } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
-import { recurring } from "@/lib/sampleData";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { recurring as initialRecurring } from "@/lib/sampleData";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 const compareData = [
   { m: "Nov", subs: 1820, total: 14200 },
@@ -32,7 +35,21 @@ const suggestions = [
 ];
 
 export default function LeakDetector() {
-  const monthlyLoss = recurring.reduce((s, r) => s + (r.frequency === "Monthly" ? r.amount : r.amount / 3), 0);
+  const [localRecurring, setLocalRecurring] = useState(initialRecurring);
+  const [manageService, setManageService] = useState<string | null>(null);
+
+  const handleCancel = (service: string) => {
+    toast({ title: "Subscription Cancelled", description: `${service} has been successfully cancelled.` });
+    setLocalRecurring(localRecurring.map(r => r.service === service ? { ...r, status: "Cancelled" } : r));
+  };
+
+  const handlePause = (service: string) => {
+    toast({ title: "Autopay Paused", description: `Autopay for ${service} has been paused.` });
+    setLocalRecurring(localRecurring.map(r => r.service === service ? { ...r, status: "Paused" } : r));
+    setManageService(null);
+  };
+
+  const monthlyLoss = localRecurring.reduce((s, r) => s + (r.status !== "Cancelled" && r.status !== "Paused" ? (r.frequency === "Monthly" ? r.amount : r.amount / 3) : 0), 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,7 +64,7 @@ export default function LeakDetector() {
           <AlertTriangle className="h-7 w-7" />
           <div className="mt-4 text-xs font-medium text-primary-foreground/90">Hidden monthly loss</div>
           <div className="mt-1 text-3xl font-bold">₹{Math.round(monthlyLoss).toLocaleString()}</div>
-          <div className="mt-2 text-xs text-primary-foreground/85">{recurring.length} active subscriptions</div>
+          <div className="mt-2 text-xs text-primary-foreground/85">{localRecurring.filter(r => r.status !== "Cancelled").length} active subscriptions</div>
         </Card>
         <Card className="border-border/60 p-6 shadow-soft md:col-span-2">
           <div className="flex items-center gap-2">
@@ -78,7 +95,7 @@ export default function LeakDetector() {
               </tr>
             </thead>
             <tbody>
-              {recurring.map((r) => (
+              {localRecurring.map((r) => (
                 <tr key={r.service} className="border-b border-border last:border-0 hover:bg-secondary/40">
                   <td className="px-6 py-3 font-medium">{r.service}</td>
                   <td className="px-6 py-3 font-semibold">₹{r.amount}</td>
@@ -87,8 +104,8 @@ export default function LeakDetector() {
                   <td className="px-6 py-3"><StatusPill status={r.status} /></td>
                   <td className="px-6 py-3 text-right">
                     <div className="inline-flex gap-2">
-                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs">Manage</Button>
-                      <Button size="sm" variant="outline" className="h-8 rounded-lg border-danger/30 text-danger text-xs hover:bg-danger-soft hover:text-danger">
+                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs" onClick={() => setManageService(r.service)}>Manage</Button>
+                      <Button size="sm" variant="outline" className="h-8 rounded-lg border-danger/30 text-danger text-xs hover:bg-danger-soft hover:text-danger" onClick={() => handleCancel(r.service)} disabled={r.status === "Cancelled"}>
                         <Ban className="mr-1 h-3 w-3" /> Cancel
                       </Button>
                     </div>
@@ -129,7 +146,7 @@ export default function LeakDetector() {
               <StatTile icon={ArrowUp} tone="danger" label="Highest spending" value={spendBreakdown[0] && [...spendBreakdown].sort((a,b)=>b.value-a.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>b.value-a.value)[0].value.toLocaleString()}`} />
               <StatTile icon={ArrowDown} tone="success" label="Lowest spending" value={[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].name} sub={`₹${[...spendBreakdown].sort((a,b)=>a.value-b.value)[0].value.toLocaleString()}`} />
               <StatTile icon={Wallet} tone="primary" label="Total monthly spend" value={`₹${spendBreakdown.reduce((s,c)=>s+c.value,0).toLocaleString()}`} sub="Across all categories" />
-              <StatTile icon={AlertTriangle} tone="warning" label="Hidden recurring loss" value={`₹${Math.round(recurring.reduce((s, r) => s + (r.frequency === "Monthly" ? r.amount : r.amount / 3), 0)).toLocaleString()}`} sub={`${recurring.length} subscriptions`} />
+              <StatTile icon={AlertTriangle} tone="warning" label="Hidden recurring loss" value={`₹${Math.round(localRecurring.reduce((s, r) => s + (r.status !== "Cancelled" ? (r.frequency === "Monthly" ? r.amount : r.amount / 3) : 0), 0)).toLocaleString()}`} sub={`${localRecurring.filter(r => r.status !== "Cancelled").length} subscriptions`} />
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {spendBreakdown.map((c) => (
@@ -178,6 +195,36 @@ export default function LeakDetector() {
           </ul>
         </Card>
       </div>
+
+      <Dialog open={!!manageService} onOpenChange={(v) => !v && setManageService(null)}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Manage {manageService}</DialogTitle>
+            <DialogDescription>
+              Select an action for this subscription.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 py-4">
+            <Button variant="outline" className="h-12 justify-start rounded-xl" onClick={() => manageService && handlePause(manageService)}>
+              <Pause className="mr-3 h-5 w-5 text-warning" />
+              <div className="text-left">
+                <div className="font-semibold text-sm">Pause Autopay</div>
+                <div className="text-xs text-muted-foreground">Stop the next payment without cancelling</div>
+              </div>
+            </Button>
+            <Button variant="outline" className="h-12 justify-start rounded-xl border-danger/30 hover:bg-danger-soft hover:text-danger" onClick={() => { if(manageService) handleCancel(manageService); setManageService(null); }}>
+              <Ban className="mr-3 h-5 w-5 text-danger" />
+              <div className="text-left">
+                <div className="font-semibold text-sm">Cancel Subscription</div>
+                <div className="text-xs text-muted-foreground">Permanently stop this recurring charge</div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setManageService(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -199,8 +246,10 @@ function StatusPill({ status }: { status: string }) {
     Active: "bg-success-soft text-success",
     Rising: "bg-danger-soft text-danger",
     Forgotten: "bg-warning-soft text-warning",
+    Cancelled: "bg-secondary text-muted-foreground",
+    Paused: "bg-secondary text-muted-foreground",
   };
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${map[status]}`}>{status}</span>;
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${map[status] || map.Cancelled}`}>{status}</span>;
 }
 
 function StatTile({ icon: Icon, label, value, sub, tone }: { icon: any; label: string; value: string; sub: string; tone: "primary" | "success" | "warning" | "danger" }) {

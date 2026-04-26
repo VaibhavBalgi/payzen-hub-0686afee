@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Upload, CreditCard } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
@@ -18,23 +18,31 @@ export default function Transactions() {
   const [bank, setBank] = useState("all");
   const [app, setApp] = useState("all");
   const [cat, setCat] = useState("all");
+  const [src, setSrc] = useState("all");
   const [sortDesc, setSortDesc] = useState(true);
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['transactions'],
     queryFn: api.getTransactions
   });
 
-  const deleteTxnMutation = useMutation({
-    mutationFn: (id: string) => fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/transactions/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {})
-      }
-    }).then(res => res.json()),
+  const importCsvMutation = useMutation({
+    mutationFn: api.importCSV,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactionStats'] });
+    }
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: api.createRazorpayOrder
+  });
+
+  const verifyPaymentMutation = useMutation({
+    mutationFn: api.verifyRazorpayPayment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactionStats'] });
@@ -44,18 +52,100 @@ export default function Transactions() {
   const transactions = response?.data || [];
 
   const filtered = useMemo(() => {
-    let r = transactions.filter((t) =>
-      (q === "" || t.merchant.toLowerCase().includes(q.toLowerCase()) || t.raw.toLowerCase().includes(q.toLowerCase())) &&
+    let r = transactions.filter((t: any) =>
+      (q === "" || t.merchant?.toLowerCase().includes(q.toLowerCase()) || t.raw?.toLowerCase().includes(q.toLowerCase())) &&
       (bank === "all" || t.bank === bank) &&
       (app === "all" || t.app === app) &&
-      (cat === "all" || t.category === cat)
+      (cat === "all" || t.category === cat) &&
+      (src === "all" || t.source === src)
     );
-    r = [...r].sort((a, b) => sortDesc ? b.amount - a.amount : a.amount - b.amount);
+    r = [...r].sort((a: any, b: any) => sortDesc ? b.amount - a.amount : a.amount - b.amount);
     return r;
-  }, [q, bank, app, cat, sortDesc]);
+  }, [transactions, q, bank, app, cat, src, sortDesc]);
+
+  const predefinedBanks = ["HDFC", "ICICI", "SBI", "Axis", "Kotak"];
+  const predefinedApps = ["GPay", "PhonePe", "Paytm", "BHIM", "CRED", "Amazon Pay", "WhatsApp Pay", "Bank", "Auto-debit"];
+  const predefinedCats = ["Food", "Shopping", "Travel", "Subscription", "Utilities", "Income", "Groceries", "Other", "Merchant", "Transfer", "Entertainment"];
+
+  const uniqueBanks = useMemo(() => ["all", ...new Set([...predefinedBanks, ...transactions.map((t: any) => t.bank).filter(Boolean)])], [transactions]) as string[];
+  const uniqueApps = useMemo(() => ["all", ...new Set([...predefinedApps, ...transactions.map((t: any) => t.app).filter(Boolean)])], [transactions]) as string[];
+  const uniqueCats = useMemo(() => ["all", ...new Set([...predefinedCats, ...transactions.map((t: any) => t.category).filter(Boolean)])], [transactions]) as string[];
+  const uniqueSources = useMemo(() => ["all", "App", "Bank/CSV", "Razorpay"], []);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const slice = filtered.slice((page - 1) * PAGE, page * PAGE);
+
+  const exportCSV = () => {
+    const headers = ["Merchant", "Description", "Category", "Amount", "Date", "Bank", "App", "Status"];
+    const csvData = filtered.map((t: any) => [
+      `"${t.merchant || ''}"`,
+      `"${t.raw || ''}"`,
+      `"${t.category || ''}"`,
+      t.amount,
+      `"${new Date(t.date).toISOString()}"`,
+      `"${t.bank || ''}"`,
+      `"${t.app || ''}"`,
+      `"${t.status || ''}"`
+    ].join(","));
+    
+    const csvContent = [headers.join(","), ...csvData].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "transactions.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      importCsvMutation.mutate(e.target.files[0]);
+    }
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePayNow = async () => {
+    const res = await loadRazorpayScript();
+    if (!res) return alert("Razorpay SDK failed to load. Are you online?");
+    
+    // Create order for 100 INR demo
+    createOrderMutation.mutate(100, {
+      onSuccess: (data: any) => {
+        const options = {
+          key: data.key_id,
+          amount: data.amount,
+          currency: data.currency,
+          name: "PayZen Hub",
+          description: "Test Transaction",
+          order_id: data.orderId,
+          handler: function (response: any) {
+            verifyPaymentMutation.mutate({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: 100,
+              merchant: "PayZen Store",
+              category: "Shopping"
+            });
+          },
+          theme: { color: "#3399cc" }
+        };
+        const rzp1 = new (window as any).Razorpay(options);
+        rzp1.open();
+      }
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -64,9 +154,18 @@ export default function Transactions() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Transactions</h1>
           <p className="mt-1 text-sm text-muted-foreground">All your UPI activity, decoded and searchable.</p>
         </div>
-        <Button variant="outline" className="rounded-xl">
-          <Download className="mr-1 h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="default" className="rounded-xl shadow-glow" onClick={handlePayNow} disabled={createOrderMutation.isPending}>
+            <CreditCard className="mr-1 h-4 w-4" /> {createOrderMutation.isPending ? "Loading..." : "Pay Now (Test)"}
+          </Button>
+          <input type="file" accept=".csv, .html" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+          <Button variant="secondary" className="rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={importCsvMutation.isPending}>
+            <Upload className="mr-1 h-4 w-4" /> {importCsvMutation.isPending ? "Uploading..." : "Import CSV/HTML"}
+          </Button>
+          <Button variant="outline" className="rounded-xl" onClick={exportCSV}>
+            <Download className="mr-1 h-4 w-4" /> Export CSV
+          </Button>
+        </div>
       </div>
 
       <Card className="border-border/60 p-5 shadow-soft">
@@ -76,10 +175,10 @@ export default function Transactions() {
             <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Search merchant, UPI description..." className="h-11 rounded-xl pl-9" />
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-            <FilterSelect label="Bank" value={bank} onChange={setBank} options={["all", "HDFC", "ICICI"]} />
-            <FilterSelect label="App" value={app} onChange={setApp} options={["all", "GPay", "PhonePe", "Paytm", "BHIM", "Bank", "Auto-debit"]} />
-            <FilterSelect label="Category" value={cat} onChange={setCat} options={["all", "Food", "Shopping", "Travel", "Subscription", "Utilities", "Income", "Groceries", "Other"]} />
-            <FilterSelect label="Date" value="all" onChange={() => {}} options={["all", "Today", "Last 7 days", "Last 30 days"]} />
+            <FilterSelect label="Bank" value={bank} onChange={setBank} options={uniqueBanks} />
+            <FilterSelect label="App" value={app} onChange={setApp} options={uniqueApps} />
+            <FilterSelect label="Category" value={cat} onChange={setCat} options={uniqueCats} />
+            <FilterSelect label="Source" value={src} onChange={setSrc} options={uniqueSources} />
             <FilterSelect label="Status" value="all" onChange={() => {}} options={["all", "Success", "Pending", "Flagged"]} />
           </div>
         </div>
@@ -101,7 +200,6 @@ export default function Transactions() {
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Bank</th>
                 <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -123,11 +221,6 @@ export default function Transactions() {
                   <td className="px-5 py-3 text-muted-foreground">{new Date(t.date).toLocaleString()}</td>
                   <td className="px-5 py-3 text-muted-foreground">{t.bank}</td>
                   <td className="px-5 py-3"><StatusBadge status={t.status} /></td>
-                  <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => deleteTxnMutation.mutate(t._id)} className="h-8 w-8 text-danger hover:bg-danger-soft hover:text-danger">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </td>
                 </tr>
               ))}
             </tbody>

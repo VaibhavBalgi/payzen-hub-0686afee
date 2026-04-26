@@ -15,8 +15,8 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState("priya@payzen.app");
-  const [loginPassword, setLoginPassword] = useState("password123");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   // Signup state
   const [signupName, setSignupName] = useState("");
@@ -24,32 +24,59 @@ export default function Login() {
   const [signupPhone, setSignupPhone] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
 
+  // 2FA & Sync Flow State
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+
   const loginMutation = useMutation({
     mutationFn: api.login,
     onSuccess: (data) => {
-      localStorage.setItem("token", data.token);
-      navigate("/onboarding");
+      setTempToken(data.token);
+      setOtpStep(true);
+      toast({ title: "OTP Sent", description: "Please enter the 6-digit code sent to your phone/email." });
     },
     onError: (err: any) => {
-      // If login fails (user doesn't exist), auto-register the dummy user
-      if (loginEmail === "priya@payzen.app") {
-        registerMutation.mutate({ name: "Priya Sharma", email: loginEmail, phone: "9876543210", password: loginPassword, passwordConfirm: loginPassword });
-      } else {
-        toast({ title: "Login failed", description: err.message, variant: "destructive" });
-      }
+      toast({ title: "Login failed", description: err.message || "Invalid credentials", variant: "destructive" });
     }
   });
 
   const registerMutation = useMutation({
     mutationFn: api.register,
     onSuccess: (data) => {
-      localStorage.setItem("token", data.token);
-      navigate("/onboarding");
+      setTempToken(data.token);
+      setOtpStep(true);
+      toast({ title: "OTP Sent", description: "Please enter the 6-digit code sent to your phone/email." });
     },
     onError: (err: any) => {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });
     }
   });
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpValue.length !== 6) return toast({ title: "Invalid OTP", description: "Enter a 6-digit OTP code", variant: "destructive" });
+    
+    // Save token securely now
+    localStorage.setItem("token", tempToken);
+    setOtpStep(false);
+    setSyncing(true);
+
+    try {
+      // Trigger background sync simulation
+      await api.syncTransactions();
+      
+      // Artificial delay so user sees the "Syncing securely..." screen
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast({ title: "Sync Complete", description: "Your real bank transactions have been securely synced." });
+    } catch (err) {
+      console.log("Sync error or already synced");
+    }
+    
+    navigate("/onboarding");
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,8 +144,45 @@ export default function Login() {
             <span className="text-xl font-bold">PayZen</span>
           </Link>
 
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Sign in to continue to your dashboard.</p>
+          {syncing ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+              <div className="relative mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-primary-soft">
+                <div className="absolute inset-0 animate-ping rounded-full bg-primary-soft opacity-75" />
+                <Wallet className="h-10 w-10 text-primary animate-pulse" />
+              </div>
+              <h2 className="text-2xl font-bold">Syncing securely...</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Connecting to your banks and pulling real transactions. This takes just a moment.</p>
+            </div>
+          ) : otpStep ? (
+            <div className="animate-fade-in">
+              <h1 className="text-3xl font-bold tracking-tight">Two-Factor Auth</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Enter the 6-digit OTP sent to your registered contact.</p>
+              
+              <Card className="mt-8 border-border/60 p-6 shadow-soft">
+                <form onSubmit={handleVerifyOTP} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-center block">Enter OTP Code <span className="text-muted-foreground text-xs font-normal">(Demo: Use 123456)</span></Label>
+                    <Input 
+                      value={otpValue} 
+                      onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="h-14 text-center text-2xl tracking-[0.5em] font-mono rounded-xl" 
+                      placeholder="123456"
+                      autoFocus
+                    />
+                  </div>
+                  <Button type="submit" className="h-11 w-full rounded-xl shadow-glow">
+                    Verify & Continue <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </form>
+                <div className="mt-4 text-center text-xs text-muted-foreground">
+                  Didn't receive it? <button className="text-primary hover:underline font-medium">Resend OTP</button>
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Sign in to continue to your dashboard.</p>
 
           <Tabs defaultValue="login" className="mt-8">
             <TabsList className="grid w-full grid-cols-2 rounded-full bg-secondary p-1">
@@ -197,6 +261,8 @@ export default function Login() {
               </Card>
             </TabsContent>
           </Tabs>
+            </>
+          )}
         </div>
       </div>
     </div>

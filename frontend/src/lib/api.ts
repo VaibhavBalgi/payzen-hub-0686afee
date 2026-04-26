@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -38,6 +38,11 @@ export const api = {
     });
     return handleResponse(res, true);
   },
+  // Profile
+  getProfile: async () => {
+    const res = await fetch(`${API_URL}/users/profile`, { headers: getAuthHeaders() });
+    return handleResponse(res);
+  },
   
   // Transactions
   getTransactions: async () => {
@@ -53,6 +58,50 @@ export const api = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+  deleteTransaction: async (id: string) => {
+    const res = await fetch(`${API_URL}/transactions/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(res);
+  },
+  syncTransactions: async () => {
+    const res = await fetch(`${API_URL}/transactions/sync`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(res);
+  },
+  importCSV: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/transactions/import-csv`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    return handleResponse(res);
+  },
+
+  // Payments / Razorpay
+  createRazorpayOrder: async (amount: number) => {
+    const res = await fetch(`${API_URL}/payments/create-order`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ amount })
+    });
+    return handleResponse(res);
+  },
+  verifyRazorpayPayment: async (paymentData: any) => {
+    const res = await fetch(`${API_URL}/payments/verify`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(paymentData)
     });
     return handleResponse(res);
   },
