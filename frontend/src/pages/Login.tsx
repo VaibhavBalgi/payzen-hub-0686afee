@@ -33,9 +33,14 @@ export default function Login() {
   const loginMutation = useMutation({
     mutationFn: api.login,
     onSuccess: (data) => {
-      setTempToken(data.token);
+      setTempToken(data.preAuthToken || "");
       setOtpStep(true);
-      toast({ title: "OTP Sent", description: "Please enter the 6-digit code sent to your phone/email." });
+      toast({
+        title: "OTP Sent",
+        description: data.devOtp
+          ? `Dev OTP: ${data.devOtp}`
+          : "Enter the 6-digit code sent to your phone/email.",
+      });
     },
     onError: (err: any) => {
       toast({ title: "Login failed", description: err.message || "Invalid credentials", variant: "destructive" });
@@ -45,36 +50,52 @@ export default function Login() {
   const registerMutation = useMutation({
     mutationFn: api.register,
     onSuccess: (data) => {
-      setTempToken(data.token);
+      setTempToken(data.preAuthToken || "");
       setOtpStep(true);
-      toast({ title: "OTP Sent", description: "Please enter the 6-digit code sent to your phone/email." });
+      toast({
+        title: "OTP Sent",
+        description: data.devOtp
+          ? `Dev OTP: ${data.devOtp}`
+          : "Enter the 6-digit code sent to your phone/email.",
+      });
     },
     onError: (err: any) => {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });
     }
   });
 
+  const verifyOtpMutation = useMutation({
+    mutationFn: api.verifyOtp,
+  });
+
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpValue.length !== 6) return toast({ title: "Invalid OTP", description: "Enter a 6-digit OTP code", variant: "destructive" });
-    
-    // Save token securely now
-    localStorage.setItem("token", tempToken);
+    if (otpValue.length !== 6) {
+      return toast({ title: "Invalid OTP", description: "Enter a 6-digit OTP code", variant: "destructive" });
+    }
+    if (!tempToken) {
+      return toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+    }
+
+    let result;
+    try {
+      result = await verifyOtpMutation.mutateAsync({ preAuthToken: tempToken, otp: otpValue });
+    } catch (err: any) {
+      return toast({ title: "OTP verification failed", description: err.message || "Invalid OTP", variant: "destructive" });
+    }
+
+    localStorage.setItem("token", result.token);
     setOtpStep(false);
     setSyncing(true);
 
     try {
-      // Trigger background sync simulation
       await api.syncTransactions();
-      
-      // Artificial delay so user sees the "Syncing securely..." screen
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
       toast({ title: "Sync Complete", description: "Your real bank transactions have been securely synced." });
     } catch (err) {
       console.log("Sync error or already synced");
     }
-    
+
     navigate("/onboarding");
   };
 
