@@ -37,6 +37,7 @@ export const api = {
       body: JSON.stringify(userData)
     });
     return handleResponse(res, true);
+  },
   verifyOtp: async (payload: { preAuthToken: string; otp: string }) => {
     const res = await fetch(`${API_URL}/auth/otp/verify`, {
       method: 'POST',
