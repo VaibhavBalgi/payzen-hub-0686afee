@@ -182,7 +182,7 @@ export default function Login() {
               <Card className="mt-8 border-border/60 p-6 shadow-soft">
                 <form onSubmit={handleVerifyOTP} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-center block">Enter OTP Code <span className="text-muted-foreground text-xs font-normal">(Demo: Use 123456)</span></Label>
+                    <Label className="text-center block">Enter OTP Code <span className="text-muted-foreground text-xs font-normal">(check the toast for dev OTP)</span></Label>
                     <Input 
                       value={otpValue} 
                       onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
