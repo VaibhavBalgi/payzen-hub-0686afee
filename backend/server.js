@@ -80,12 +80,7 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV}`);
 });
 
-console.log("MONGO_URI:", process.env.MONGO_URI);
-
 // Trigger nodemon restart
 
-// Trigger nodemon restart 2
-
-// Restart for port 5005
 
 // Trigger nodemon restart
