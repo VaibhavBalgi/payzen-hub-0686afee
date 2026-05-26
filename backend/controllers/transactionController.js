@@ -21,9 +21,12 @@ export const getTransactions = async (req, res, next) => {
 // @access  Private
 export const addTransaction = async (req, res, next) => {
   try {
-    req.body.user = req.userId;
-    const transaction = await Transaction.create(req.body);
-    
+    const { merchant, amount, date, category, bank, app, status, raw, logo } = req.body;
+    const transaction = await Transaction.create({
+      user: req.userId,
+      merchant, amount, date, category, bank, app, status, raw, logo,
+    });
+
     res.status(201).json({
       success: true,
       data: transaction
