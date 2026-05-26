@@ -52,7 +52,13 @@ export const updateTransaction = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Not authorized to update this transaction' });
     }
 
-    transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, {
+    const { merchant, amount, date, category, bank, app, status, raw, logo } = req.body;
+    const updates = Object.fromEntries(
+      Object.entries({ merchant, amount, date, category, bank, app, status, raw, logo })
+        .filter(([, v]) => v !== undefined)
+    );
+
+    transaction = await Transaction.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true
     });
