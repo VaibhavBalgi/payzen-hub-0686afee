@@ -6,13 +6,12 @@ import {
   getAllUsers,
   deleteUser,
 } from '../controllers/userController.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
 /**
  * User Routes
- * Most routes require JWT authentication
  */
 
 // Get current logged-in user profile (protected)
@@ -21,13 +20,13 @@ router.get('/profile', verifyToken, getCurrentUser);
 // Update user profile (protected)
 router.put('/profile', verifyToken, updateUserProfile);
 
-// Get user by ID (protected)
-router.get('/:id', verifyToken, getUserById);
+// Admin-only: list all users
+router.get('/', verifyToken, isAdmin, getAllUsers);
 
-// Get all users (protected - admin function)
-router.get('/', verifyToken, getAllUsers);
+// Admin-only: get a user by ID
+router.get('/:id', verifyToken, isAdmin, getUserById);
 
-// Delete user (protected - admin function)
-router.delete('/:id', verifyToken, deleteUser);
+// Admin-only: delete a user
+router.delete('/:id', verifyToken, isAdmin, deleteUser);
 
 export default router;

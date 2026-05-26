@@ -20,7 +20,16 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '-' + file.originalname)
   }
 });
-const upload = multer({ storage: storage });
+const ALLOWED_EXTS = ['.csv', '.html', '.htm'];
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 }, // 5 MB max, single file
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXTS.includes(ext)) return cb(null, true);
+    return cb(new Error('Only CSV and HTML files are allowed'));
+  },
+});
 
 const router = express.Router();
 

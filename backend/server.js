@@ -21,10 +21,22 @@ const app = express();
 connectDB();
 
 // Middleware
+const DEFAULT_DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'http://localhost:8081',
+  'http://localhost:3000',
+];
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_DEV_ORIGINS);
+
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow any origin in development for easier testing across ports (5173, 8080, 8081, etc)
-    callback(null, true);
+  origin: (origin, cb) => {
+    // Allow same-origin / server-to-server requests with no Origin header
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
 }));
@@ -68,12 +80,7 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV}`);
 });
 
-console.log("MONGO_URI:", process.env.MONGO_URI);
-
 // Trigger nodemon restart
 
-// Trigger nodemon restart 2
-
-// Restart for port 5005
 
 // Trigger nodemon restart

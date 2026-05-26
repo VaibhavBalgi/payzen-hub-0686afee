@@ -2,10 +2,13 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Transaction from '../models/Transaction.js';
 
-// Since this is a demo, we will use hardcoded generic Razorpay test keys if none are provided in env
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.warn('[payments] RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not set — payment endpoints will fail until configured.');
+}
+
 const rzp = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_T1z6ZTk3y8y7oR',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'b75E0u8dF6Z9n9X3b7x8u2q5'
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
 // @desc    Create a Razorpay order
